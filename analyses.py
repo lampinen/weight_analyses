@@ -1,6 +1,7 @@
 import numpy as np
-from scipy.stats import ttest_1samp
+from scipy.stats import ttest_1samp, ttest_ind, entropy
 
+num_runs = 13
 
 weights = []
 biases = []
@@ -11,7 +12,7 @@ pre_weights = []
 pre_output_modes = []
 pre_strengths = []
 
-for run_i in range(10):
+for run_i in range(num_runs):
     filename = "./results/run%i_post_first_layer_weights.csv" % run_i
     these_weights = np.loadtxt(filename, delimiter=',')
     weights.append(these_weights)
@@ -32,15 +33,15 @@ for run_i in range(10):
     pre_output_modes.append(V)
     pre_strengths.append(S)
 
-post_simil = np.zeros([10,10])
-for i in range(10):
-    for j in range(10):
+post_simil = np.zeros([num_runs,num_runs])
+for i in range(num_runs):
+    for j in range(num_runs):
 	this_simil = np.dot(output_modes[i], output_modes[j].transpose())
 	post_simil[i][j] = np.sum(this_simil)
 
-pre_simil = np.zeros([10,10])
-for i in range(10):
-    for j in range(10):
+pre_simil = np.zeros([num_runs,num_runs])
+for i in range(num_runs):
+    for j in range(num_runs):
 	this_simil = np.dot(pre_output_modes[i], pre_output_modes[j].transpose())
 	pre_simil[i][j] = np.sum(this_simil)
 
@@ -48,6 +49,33 @@ print(strengths)
 print(post_simil)
 print(pre_simil)
 
-print(np.shape((np.abs(post_simil)-np.abs(pre_simil))[np.where(~np.eye(10,dtype=bool))]))
-print(ttest_1samp((np.abs(post_simil)-np.abs(pre_simil))[np.where(~np.eye(10,dtype=bool))], 0))
+print(np.shape((np.abs(post_simil)-np.abs(pre_simil))[np.where(~np.eye(num_runs,dtype=bool))]))
+print("T-test between similarities (post - pre, abs. values, diagonals removed)")
+print(ttest_1samp((np.abs(post_simil)-np.abs(pre_simil))[np.where(~np.eye(num_runs,dtype=bool))], 0))
 
+om_ents_pre = []
+om_ents_post = []
+
+om_maxs_pre = []
+om_maxs_post = []
+for i in range(num_runs): 
+    this_pom = pre_output_modes[i]
+    this_om = output_modes[i]
+    om_maxs_pre.append(np.amax(this_pom, axis=1))
+    om_maxs_post.append(np.amax(this_om, axis=1))
+
+    for mode_j in range(len(this_om)):
+        om_ents_pre.append(entropy(np.square(this_pom[mode_j, :])))
+        om_ents_post.append(entropy(np.square(this_om[mode_j, :])))
+    
+om_maxs_pre = np.array(om_maxs_pre).flatten()
+om_maxs_post = np.array(om_maxs_post).flatten()
+om_ents_pre = np.array(om_ents_pre).flatten()
+om_ents_post = np.array(om_ents_post).flatten()
+
+print("(2-sample) T-test between post mode maxes and pre mode maxes")
+print(ttest_ind(om_maxs_post, om_maxs_pre, equal_var=False))
+
+
+print("(2-sample) T-test between post mode entropies and pre mode entropies")
+print(ttest_ind(om_ents_post, om_ents_pre, equal_var=False))
