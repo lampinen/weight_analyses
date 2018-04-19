@@ -1,7 +1,7 @@
 from __future__ import print_function
 from __future__ import division 
 
-from collections import Counter
+#from collections import Counter
 
 import numpy as np
 import tensorflow as tf
@@ -11,7 +11,7 @@ import tensorflow.contrib.slim as slim
 ###### configuration ###########################################################
 
 config = {
-    "num_runs": 10,
+    "num_runs": 30,
     "batch_size": 10,
     "base_learning_rate": 0.0005,
     "base_lr_decay": 0.9,
@@ -20,6 +20,7 @@ config = {
     "base_training_epochs": 60,
     "output_path": "./results/",
     "nobias": False, # no biases
+    "linear": True,
     "layer_sizes": [256, 128, 64, 128, 256]
 }
 
@@ -77,26 +78,32 @@ class MNIST_autoenc(object):
 
 	# small weight initializer
 	weight_init = tf.contrib.layers.variance_scaling_initializer(factor=0.2, mode='FAN_AVG')
+	if config["linear"]:
+	    intermediate_activation_fn=None
+	    final_activation_fn=None
+	else:
+	    intermediate_activation_fn=tf.nn.relu
+	    final_activation_fn=tf.nn.sigmoid
 	
 
         net = self.input_ph
 	bottleneck_layer_i = len(layer_sizes)//2
         for i, h_size in enumerate(layer_sizes):
 	    if config["nobias"]:
-	      net = slim.layers.fully_connected(net, h_size, activation_fn=tf.nn.relu,
+	      net = slim.layers.fully_connected(net, h_size, activation_fn=intermediate_activation_fn,
 						weights_initializer=weight_init,
 						biases_initializer=None)
 	    else:
-	      net = slim.layers.fully_connected(net, h_size, activation_fn=tf.nn.relu,
+	      net = slim.layers.fully_connected(net, h_size, activation_fn=intermediate_activation_fn,
 						weights_initializer=weight_init)
             if i == bottleneck_layer_i: 
                 self.bottleneck_rep = net
 	if config["nobias"]:
-	    self.output = slim.layers.fully_connected(net, 784, activation_fn=tf.nn.sigmoid,
+	    self.output = slim.layers.fully_connected(net, 784, activation_fn=final_activation_fn,
 						      weights_initializer=weight_init,
 						      biases_initializer=None)
 	else:
-	    self.output = slim.layers.fully_connected(net, 784, activation_fn=tf.nn.sigmoid,
+	    self.output = slim.layers.fully_connected(net, 784, activation_fn=final_activation_fn,
 						      weights_initializer=weight_init)
 						  
         self.loss = tf.nn.l2_loss(self.output-self.input_ph)
@@ -199,7 +206,7 @@ class MNIST_autoenc(object):
 ###### Run stuff ###############################################################
 
 for run in range(config["num_runs"]):
-    filename_prefix = "run%i_" %(run)
+    filename_prefix = "run%i_linear_" %(run)
     print(filename_prefix)
     np.random.seed(run)
     tf.set_random_seed(run)
@@ -210,10 +217,10 @@ for run in range(config["num_runs"]):
     train_data["labels"] = train_data["labels"][order]
     train_data["images"] = train_data["images"][order]
 
-    model.save_first_weights(filename_prefix + "pre_")
+    model.save_first_weights(config["output_path"] + filename_prefix + "pre_")
 
     model.run_training(train_data, config["base_training_epochs"],
                        log_file_prefix=filename_prefix, test_dataset=test_data)
 
-    model.save_first_weights(filename_prefix + "post_")
+    model.save_first_weights(config["output_path"] + filename_prefix + "post_")
     tf.reset_default_graph()
