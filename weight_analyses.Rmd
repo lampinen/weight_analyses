@@ -1,0 +1,64 @@
+---
+title: "Weight analyses"
+output: html_notebook
+---
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lme4)
+library(boot)
+```
+
+```{r}
+entropy_data = read.csv('./results/entropies.csv', header=T)
+```
+
+```{r}
+contrasts(entropy_data$type) = cbind(pre=c(0, 1, 0), post=c(1, 0, 0)) # make random the reference
+```
+ 
+```{r}
+theme_set(theme_bw() +
+            theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()))
+```
+
+```{r}
+ggplot(data=entropy_data, aes(x=entropy, color=type))  +
+  geom_density()
+```
+ 
+ 
+```{r}
+ggplot(data=entropy_data %>% filter(mode_rank < 30), aes(x=entropy, color=type))  +
+  geom_density()
+```
+```{r}
+
+```
+
+```{r}
+res = lmer(entropy ~ type + (1|run), data=entropy_data)
+summary(res)
+```
+
+```{r}
+coefficient_getter = function(data, indices) {
+  res = lmer(entropy ~ type + (1|run), data=data[indices,])
+  res = summary(res)
+  pre_b = res$coefficients[2, 1]
+  post_b = res$coefficients[3, 1]
+  return(c(pre_b, post_b))
+}
+
+```
+
+```{r}
+bootstrap_results = boot(data=entropy_data, statistic=coefficient_getter, R=5000)
+```
+
+```{r}
+boot.ci(bootstrap_results, type="perc", index=1)
+boot.ci(bootstrap_results, type="perc", index=2, conf=0.999)
+```
+
