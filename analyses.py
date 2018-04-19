@@ -1,7 +1,8 @@
 import numpy as np
 from scipy.stats import ttest_1samp, ttest_ind, entropy
+from orthogonal_matrices import random_orthogonal
 
-num_runs = 13
+num_runs = 10
 
 weights = []
 biases = []
@@ -11,6 +12,8 @@ strengths = []
 pre_weights = []
 pre_output_modes = []
 pre_strengths = []
+
+random_output_modes = []
 
 for run_i in range(num_runs):
     filename = "./results/run%i_post_first_layer_weights.csv" % run_i
@@ -32,6 +35,8 @@ for run_i in range(num_runs):
     U, S, V = np.linalg.svd(these_weights, full_matrices=False)
     pre_output_modes.append(V)
     pre_strengths.append(S)
+
+    random_output_modes.append(random_orthogonal(len(S)))
 
 post_simil = np.zeros([num_runs,num_runs])
 for i in range(num_runs):
@@ -58,15 +63,28 @@ om_ents_post = []
 
 om_maxs_pre = []
 om_maxs_post = []
-for i in range(num_runs): 
-    this_pom = pre_output_modes[i]
-    this_om = output_modes[i]
-    om_maxs_pre.append(np.amax(this_pom, axis=1))
-    om_maxs_post.append(np.amax(this_om, axis=1))
+with open("./results/entropies.csv", "w") as fout:
+    fout.write('run, type, mode_rank, mode_strength, entropy\n')
+    for i in range(num_runs): 
+        this_pom = pre_output_modes[i]
+        this_ps = strengths[i]
+        this_rom = random_output_modes[i]
+        this_om = output_modes[i]
+        this_pps = pre_strengths[i]
+        om_maxs_pre.append(np.amax(this_pom, axis=1))
+        om_maxs_post.append(np.amax(this_om, axis=1))
 
-    for mode_j in range(len(this_om)):
-        om_ents_pre.append(entropy(np.square(this_pom[mode_j, :])))
-        om_ents_post.append(entropy(np.square(this_om[mode_j, :])))
+        for mode_j in range(len(this_om)):
+            this_ent = entropy(np.square(this_pom[mode_j, :]))
+            om_ents_pre.append(this_ent)
+            fout.write('%i, %s, %i, %f, %f\n' % (i, "pre", mode_j+1, this_pps[mode_j], this_ent))
+            this_ent = entropy(np.square(this_om[mode_j, :]))
+            om_ents_post.append(this_ent)
+            fout.write('%i, %s, %i, %f, %f\n' % (i, "post", mode_j+1, this_ps[mode_j], this_ent))
+
+            this_ent = entropy(np.square(this_rom[mode_j, :]))
+            fout.write('%i, %s, %i, NA, %f\n' % (i, "random_orthogonal", mode_j+1, this_ent))
+            
     
 om_maxs_pre = np.array(om_maxs_pre).flatten()
 om_maxs_post = np.array(om_maxs_post).flatten()
