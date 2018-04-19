@@ -110,7 +110,7 @@ class MNIST_autoenc(object):
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
 
-    def train(self, dataset, nepochs=100, log_file_prefix=None, test_dataset=None):
+    def run_training(self, dataset, nepochs=100, log_file_prefix=None, test_dataset=None):
         """Train the model on a dataset"""
         if log_file_prefix is not None:
             if test_dataset is not None:
@@ -206,11 +206,14 @@ for run in range(config["num_runs"]):
 
     model = MNIST_autoenc(layer_sizes=config["layer_sizes"])
 
-    np.random.shuffle(train_data)
+    order = np.random.permutation(len(train_data["labels"]))
+    train_data["labels"] = train_data["labels"][order]
+    train_data["images"] = train_data["images"][order]
+
     model.save_first_weights(filename_prefix + "pre_")
 
-    model.train(train_data, config["base_training_epochs"],
-                log_file_prefix=filename_prefix, test_dataset=test_data)
+    model.run_training(train_data, config["base_training_epochs"],
+                       log_file_prefix=filename_prefix, test_dataset=test_data)
 
     model.save_first_weights(filename_prefix + "post_")
     tf.reset_default_graph()
