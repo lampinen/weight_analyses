@@ -15,7 +15,7 @@ entropy_data = read.csv('./results/entropies.csv', header=T)
 ```
 
 ```{r}
-contrasts(entropy_data$type) = cbind(pre=c(0, 1, 0), post=c(1, 0, 0)) # make random the reference
+contrasts(entropy_data$type) = cbind(linear_post=c(1, 0, 0, 0), post=c(0, 1, 0, 0), pre=c(0, 0, 1, 0)) # make random the reference
 ```
  
 ```{r}
@@ -25,16 +25,20 @@ theme_set(theme_bw() +
 
 ```{r}
 ggplot(data=entropy_data, aes(x=entropy, color=type))  +
-  geom_density()
+  scale_color_brewer(palette="Dark2") +
+  geom_density(size=1.2)
 ```
- 
+```{r}
+ggsave("plots/high_rank_modes_entropy_density.png", width=7, height=7)
+```
  
 ```{r}
 ggplot(data=entropy_data %>% filter(mode_rank < 30), aes(x=entropy, color=type))  +
-  geom_density()
+  scale_color_brewer(palette="Dark2") +
+  geom_density(size=1.2)
 ```
 ```{r}
-
+ggsave("plots/high_rank_modes_entropy_density.png", width=7, height=7)
 ```
 
 ```{r}

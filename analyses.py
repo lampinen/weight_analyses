@@ -9,6 +9,10 @@ biases = []
 output_modes = []
 strengths = []
 
+linear_weights = []
+linear_output_modes = []
+linear_strengths = []
+
 pre_weights = []
 pre_output_modes = []
 pre_strengths = []
@@ -16,6 +20,7 @@ pre_strengths = []
 random_output_modes = []
 
 for run_i in range(num_runs):
+    # post
     filename = "./results/run%i_post_first_layer_weights.csv" % run_i
     these_weights = np.loadtxt(filename, delimiter=',')
     weights.append(these_weights)
@@ -28,6 +33,7 @@ for run_i in range(num_runs):
     output_modes.append(V)
     strengths.append(S)
 
+    # pre
     filename = "./results/run%i_pre_first_layer_weights.csv" % run_i
     these_weights = np.loadtxt(filename, delimiter=',')
     pre_weights.append(these_weights)
@@ -36,7 +42,18 @@ for run_i in range(num_runs):
     pre_output_modes.append(V)
     pre_strengths.append(S)
 
+    # random
     random_output_modes.append(random_orthogonal(len(S)))
+
+    # linear
+    filename = "./results/run%i_linear_post_first_layer_weights.csv" % run_i
+    these_weights = np.loadtxt(filename, delimiter=',')
+    linear_weights.append(these_weights)
+
+    U, S, V = np.linalg.svd(these_weights, full_matrices=False)
+    # output modes are rows of V
+    linear_output_modes.append(V)
+    linear_strengths.append(S)
 
 post_simil = np.zeros([num_runs,num_runs])
 for i in range(num_runs):
@@ -70,7 +87,9 @@ with open("./results/entropies.csv", "w") as fout:
         this_ps = strengths[i]
         this_rom = random_output_modes[i]
         this_om = output_modes[i]
+        this_lom = linear_output_modes[i]
         this_pps = pre_strengths[i]
+        this_lps = linear_strengths[i]
         om_maxs_pre.append(np.amax(this_pom, axis=1))
         om_maxs_post.append(np.amax(this_om, axis=1))
 
@@ -84,6 +103,9 @@ with open("./results/entropies.csv", "w") as fout:
 
             this_ent = entropy(np.square(this_rom[mode_j, :]))
             fout.write('%i, %s, %i, NA, %f\n' % (i, "random_orthogonal", mode_j+1, this_ent))
+
+            this_ent = entropy(np.square(this_lom[mode_j, :]))
+            fout.write('%i, %s, %i, %s, %f\n' % (i, "linear_post", mode_j+1, this_lps[mode_j], this_ent))
             
     
 om_maxs_pre = np.array(om_maxs_pre).flatten()
