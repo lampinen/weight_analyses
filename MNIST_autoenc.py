@@ -18,9 +18,9 @@ config = {
     "base_lr_decays_every": 1,
     "base_lr_min": 0.00001,
     "base_training_epochs": 60,
-    "output_path": "./results/",
+    "output_path": "./results_all_layers/",
     "nobias": False, # no biases
-    "linear": True,
+    "linear": False,
     "layer_sizes": [256, 128, 64, 128, 256]
 }
 
@@ -112,7 +112,10 @@ class MNIST_autoenc(object):
         self.train = self.optimizer.minimize(tf.reduce_mean(self.loss))
 
         self.first_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'fully_connected/weights')[0]
+        self.all_weights = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'fully_connected[_0-9]*/weights')
+
         self.first_biases = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'fully_connected/biases')[0]
+        self.all_biases = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'fully_connected[_0-9]*/biases')
 
         self.sess = tf.Session()
         self.sess.run(tf.global_variables_initializer())
@@ -191,6 +194,13 @@ class MNIST_autoenc(object):
         np.savetxt(filename_prefix + "first_layer_weights.csv", weights, delimiter=',')
         np.savetxt(filename_prefix + "first_layer_biases.csv", biases, delimiter=',')
 
+    def save_all_weights(self, filename_prefix):
+        weights = self.sess.run(self.all_weights)
+        biases = self.sess.run(self.all_biases)
+        for layer in range(len(self.all_weights)):
+            np.savetxt(filename_prefix + "layer%i_weights.csv" % layer, weights[layer], delimiter=',')
+            np.savetxt(filename_prefix + "layer%i_biases.csv" % layer, biases[layer], delimiter=',')
+
     def display_output(self, image):
         """Runs an image and shows comparison"""
         output_image = self.sess.run(self.output, feed_dict={
@@ -206,7 +216,7 @@ class MNIST_autoenc(object):
 ###### Run stuff ###############################################################
 
 for run in range(config["num_runs"]):
-    filename_prefix = "run%i_linear_" %(run)
+    filename_prefix = "run%i_nonlinear_" %(run)
     print(filename_prefix)
     np.random.seed(run)
     tf.set_random_seed(run)
@@ -217,10 +227,10 @@ for run in range(config["num_runs"]):
     train_data["labels"] = train_data["labels"][order]
     train_data["images"] = train_data["images"][order]
 
-    model.save_first_weights(config["output_path"] + filename_prefix + "pre_")
+    model.save_all_weights(config["output_path"] + filename_prefix + "pre_")
 
     model.run_training(train_data, config["base_training_epochs"],
                        log_file_prefix=filename_prefix, test_dataset=test_data)
 
-    model.save_first_weights(config["output_path"] + filename_prefix + "post_")
+    model.save_all_weights(config["output_path"] + filename_prefix + "post_")
     tf.reset_default_graph()
