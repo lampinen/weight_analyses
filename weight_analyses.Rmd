@@ -11,11 +11,9 @@ library(boot)
 ```
 
 ```{r}
-entropy_data = read.csv('./results/entropies.csv', header=T)
-```
-
-```{r}
-contrasts(entropy_data$type) = cbind(linear_post=c(1, 0, 0, 0, 0), post=c(0, 1, 0, 0, 0), pre=c(0, 0, 1, 0, 0), tanh_post=c(0, 0, 0, 0, 1)) # make random the reference
+num_layers = 5
+entropy_data = read.csv('./results_all_layers/entropies.csv', header=T)
+contrasts(entropy_data$type) = cbind(linear_post=c(1, 0, 0, 0), post=c(0, 1, 0, 0), pre=c(0, 0, 1, 0)) # make random the reference
 ```
  
 ```{r}
@@ -24,50 +22,46 @@ theme_set(theme_bw() +
 ```
 
 ```{r}
-ggplot(data=entropy_data, aes(x=entropy, color=type))  +
-  scale_color_brewer(palette="Dark2") +
-  geom_density(size=1.2)
-```
-```{r}
-ggsave("plots/modes_entropy_density.png", width=7, height=7)
-```
- 
-```{r}
-ggplot(data=entropy_data %>% filter(mode_rank < 30), aes(x=entropy, color=type))  +
-  scale_color_brewer(palette="Dark2") +
-  geom_density(size=1.2)
-```
-```{r}
-ggsave("plots/high_rank_modes_entropy_density.png", width=7, height=7)
-```
-
-```{r}
-res = lmer(entropy ~ type + (1|run), data=entropy_data)
-summary(res)
-```
-
-```{r}
-coefficient_getter = function(data, indices) {
-  res = lmer(entropy ~ type + (1|run), data=data[indices,])
-  res = summary(res)
-  linear_b = res$coefficients[2, 1]
-  post_b = res$coefficients[3, 1]
-  pre_b = res$coefficients[4, 1]
-  tanh_b = res$coefficients[5, 1]
-  return(c(pre_b, post_b, linear_b, tanh_b))
+for (this_layer in 0:(num_layers-1)) {
+  ggplot(data=entropy_data %>% filter(layer==this_layer), aes(x=entropy, color=type))  +
+    scale_color_brewer(palette="Dark2") +
+    geom_density(size=1.2)
+  ggsave(sprintf("plots/modes_entropy_density_layer_%i.png", this_layer), width=7, height=7)
+   
+  ggplot(data=entropy_data %>% filter(mode_rank < 30, layer==this_layer), aes(x=entropy, color=type))  +
+    scale_color_brewer(palette="Dark2") +
+    geom_density(size=1.2)
+  ggsave(sprintf("plots/high_rank_modes_entropy_density_layer_%i.png", this_layer), width=7, height=7)
 }
+```
+
+```{r}
+#res = lmer(entropy ~ type + (1|run), data=entropy_data)
+#summary(res)
+```
+
+```{r}
+# coefficient_getter = function(data, indices) {
+#   res = lmer(entropy ~ type + (1|run), data=data[indices,])
+#   res = summary(res)
+#   linear_b = res$coefficients[2, 1]
+#   post_b = res$coefficients[3, 1]
+#   pre_b = res$coefficients[4, 1]
+#   tanh_b = res$coefficients[5, 1]
+#   return(c(pre_b, post_b, linear_b, tanh_b))
+# }
 
 ```
 
 ```{r}
-bootstrap_results = boot(data=entropy_data, statistic=coefficient_getter, R=5000)
+# bootstrap_results = boot(data=entropy_data, statistic=coefficient_getter, R=5000)
 ```
 
 ```{r}
-boot.ci(bootstrap_results, type="perc", index=1)
-boot.ci(bootstrap_results, type="perc", index=2, conf=0.999)
-boot.ci(bootstrap_results, type="perc", index=3)
-boot.ci(bootstrap_results, type="perc", index=4)
+# boot.ci(bootstrap_results, type="perc", index=1)
+# boot.ci(bootstrap_results, type="perc", index=2, conf=0.999)
+# boot.ci(bootstrap_results, type="perc", index=3)
+# boot.ci(bootstrap_results, type="perc", index=4)
 ```
 
 # correlation of rank with entropy
@@ -75,9 +69,8 @@ boot.ci(bootstrap_results, type="perc", index=4)
 ```{r}
 entropy_correlation_data = entropy_data %>%
   filter(mode_rank < 50) %>%
-  group_by(type, mode_rank, mode_strength) %>%
-  summarize(mean_entropy=mean(entropy)) %>%
-  mutate(mode_strength=as.numeric(mode_strength))
+  group_by(type, layer, mode_rank) %>%
+  summarize(mean_entropy=mean(entropy), mean_strength=mean(as.numeric(mode_strength)))
 ```
 
 ```{r}
@@ -85,15 +78,17 @@ ggplot(entropy_correlation_data,
        aes(x=mode_rank, y=mean_entropy, color=type)) +
   geom_point() +
   geom_line() +
-  scale_color_brewer(palette="Dark2")
+  scale_color_brewer(palette="Dark2") +
+  facet_wrap(~layer)
 ```
 
 
 ```{r}
 ggplot(entropy_correlation_data %>%
          filter(type != " tanh_post"), # hard to interpret raw strengths across non-linearities
-       aes(x=mode_strength, y=mean_entropy, color=type)) +
+       aes(x=mean_strength, y=mean_entropy, color=type)) +
   geom_point() +
   geom_line() +
-  scale_color_brewer(palette="Dark2")
+  scale_color_brewer(palette="Dark2") +
+  facet_wrap(~layer)
 ```
