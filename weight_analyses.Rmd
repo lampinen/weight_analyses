@@ -15,7 +15,7 @@ entropy_data = read.csv('./results/entropies.csv', header=T)
 ```
 
 ```{r}
-contrasts(entropy_data$type) = cbind(linear_post=c(1, 0, 0, 0), post=c(0, 1, 0, 0), pre=c(0, 0, 1, 0)) # make random the reference
+contrasts(entropy_data$type) = cbind(linear_post=c(1, 0, 0, 0, 0), post=c(0, 1, 0, 0, 0), pre=c(0, 0, 1, 0, 0), tanh_post=c(0, 0, 0, 0, 1)) # make random the reference
 ```
  
 ```{r}
@@ -29,7 +29,7 @@ ggplot(data=entropy_data, aes(x=entropy, color=type))  +
   geom_density(size=1.2)
 ```
 ```{r}
-ggsave("plots/high_rank_modes_entropy_density.png", width=7, height=7)
+ggsave("plots/modes_entropy_density.png", width=7, height=7)
 ```
  
 ```{r}
@@ -50,9 +50,11 @@ summary(res)
 coefficient_getter = function(data, indices) {
   res = lmer(entropy ~ type + (1|run), data=data[indices,])
   res = summary(res)
-  pre_b = res$coefficients[2, 1]
+  linear_b = res$coefficients[2, 1]
   post_b = res$coefficients[3, 1]
-  return(c(pre_b, post_b))
+  pre_b = res$coefficients[4, 1]
+  tanh_b = res$coefficients[5, 1]
+  return(c(pre_b, post_b, linear_b, tanh_b))
 }
 
 ```
@@ -64,5 +66,24 @@ bootstrap_results = boot(data=entropy_data, statistic=coefficient_getter, R=5000
 ```{r}
 boot.ci(bootstrap_results, type="perc", index=1)
 boot.ci(bootstrap_results, type="perc", index=2, conf=0.999)
+boot.ci(bootstrap_results, type="perc", index=3)
+boot.ci(bootstrap_results, type="perc", index=4)
+```
+
+# correlation of rank with entropy
+
+```{r}
+entropy_correlation_data = entropy_data %>%
+  group_by(type, mode_rank, mode_strength) %>%
+  summarize(mean_entropy=mean(entropy))
+```
+
+```{r}
+ggplot(entropy_correlation_data %>%
+         filter(mode_rank <= 50),
+       aes(x=mode_rank, y=mean_entropy, color=type)) +
+  geom_point() +
+  geom_line() +
+  scale_color_brewer(palette="Dark2")
 ```
 
