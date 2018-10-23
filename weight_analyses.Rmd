@@ -74,16 +74,26 @@ boot.ci(bootstrap_results, type="perc", index=4)
 
 ```{r}
 entropy_correlation_data = entropy_data %>%
+  filter(mode_rank < 50) %>%
   group_by(type, mode_rank, mode_strength) %>%
-  summarize(mean_entropy=mean(entropy))
+  summarize(mean_entropy=mean(entropy)) %>%
+  mutate(mode_strength=as.numeric(mode_strength))
 ```
 
 ```{r}
-ggplot(entropy_correlation_data %>%
-         filter(mode_rank <= 50),
+ggplot(entropy_correlation_data,
        aes(x=mode_rank, y=mean_entropy, color=type)) +
   geom_point() +
   geom_line() +
   scale_color_brewer(palette="Dark2")
 ```
 
+
+```{r}
+ggplot(entropy_correlation_data %>%
+         filter(type != " tanh_post"), # hard to interpret raw strengths across non-linearities
+       aes(x=mode_strength, y=mean_entropy, color=type)) +
+  geom_point() +
+  geom_line() +
+  scale_color_brewer(palette="Dark2")
+```
