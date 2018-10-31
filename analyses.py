@@ -24,6 +24,11 @@ pre_strengths = [[] for i in range(num_layers)]
 
 random_output_modes = [[] for i in range(num_layers)]
 
+input_modes = [[] for i in range(num_layers)]
+linear_input_modes = [[] for i in range(num_layers)]
+pre_input_modes = [[] for i in range(num_layers)]
+random_input_modes = [[] for i in range(num_layers)]
+
 for run_i in range(num_runs):
     for layer in range(num_layers):
         # post
@@ -35,13 +40,15 @@ for run_i in range(num_runs):
 #        biases.append(these_biases)
 
         U, S, V = np.linalg.svd(these_weights, full_matrices=False)
+
         # output modes are rows of V
         output_modes[layer].append(V)
         strengths[layer].append(S)
+        input_modes[layer].append(U)
 
         # random
-        random_output_modes[layer].append(random_orthogonal(len(S)))
-
+        random_output_modes[layer].append(random_orthogonal(V.shape[-1]))
+        random_input_modes[layer].append(random_orthogonal(U.shape[0]))
 
         # pre
         filename = "./results_all_layers/run%i_nonlinear_pre_layer%i_weights.csv" % (run_i, layer)
@@ -51,6 +58,7 @@ for run_i in range(num_runs):
         U, S, V = np.linalg.svd(these_weights, full_matrices=False)
         pre_output_modes[layer].append(V)
         pre_strengths[layer].append(S)
+        pre_input_modes[layer].append(U)
 
 
         # linear
@@ -62,6 +70,7 @@ for run_i in range(num_runs):
         # output modes are rows of V
         linear_output_modes[layer].append(V)
         linear_strengths[layer].append(S)
+        linear_input_modes[layer].append(U)
 
 #        # tanh
 #        filename = "./results_all_layers/run%i_tanh_post_first_layer_weights.csv" % run_i
@@ -100,14 +109,18 @@ for run_i in range(num_runs):
 #om_maxs_pre = []
 #om_maxs_post = []
 with open("./results_all_layers/entropies.csv", "w") as fout:
-    fout.write('run, layer, type, mode_rank, mode_strength, entropy\n')
+    fout.write('run, layer, type, mode_type, mode_rank, mode_strength, entropy\n')
     for i in range(num_runs): 
         for layer in range(num_layers):
             this_pom = pre_output_modes[layer][i]
             this_ps = strengths[layer][i]
+            this_pim = pre_input_modes[layer][i]
             this_rom = random_output_modes[layer][i]
+            this_rim = random_input_modes[layer][i]
             this_om = output_modes[layer][i]
+            this_im = input_modes[layer][i]
             this_lom = linear_output_modes[layer][i]
+            this_lim = linear_input_modes[layer][i]
 #        this_tom = tanh_output_modes[layer][i]
             this_pps = pre_strengths[layer][i]
             this_lps = linear_strengths[layer][i]
@@ -118,17 +131,29 @@ with open("./results_all_layers/entropies.csv", "w") as fout:
             for mode_j in range(len(this_om)):
                 this_ent = entropy(np.square(this_pom[mode_j, :]))
 #            om_ents_pre.append(this_ent)
-                fout.write('%i, %i, %s, %i, %f, %f\n' % (i, layer, "pre", mode_j+1, this_pps[mode_j], this_ent))
+                fout.write('%i, %i, %s, %s, %i, %f, %f\n' % (i, layer, "pre", "output", mode_j+1, this_pps[mode_j], this_ent))
                 this_ent = entropy(np.square(this_om[mode_j, :]))
 #            om_ents_post.append(this_ent)
-                fout.write('%i, %i, %s, %i, %f, %f\n' % (i, layer, "post", mode_j+1, this_ps[mode_j], this_ent))
+                fout.write('%i, %i, %s, %s, %i, %f, %f\n' % (i, layer, "post", "output", mode_j+1, this_ps[mode_j], this_ent))
 
                 this_ent = entropy(np.square(this_rom[mode_j, :]))
-                fout.write('%i, %i, %s, %i, NA, %f\n' % (i, layer, "random_orthogonal", mode_j+1, this_ent))
+                fout.write('%i, %i, %s, %s, %i, NA, %f\n' % (i, layer, "random_orthogonal", "output", mode_j+1, this_ent))
 
                 this_ent = entropy(np.square(this_lom[mode_j, :]))
-                fout.write('%i, %i, %s, %i, %s, %f\n' % (i, layer, "linear_post", mode_j+1, this_lps[mode_j], this_ent))
+                fout.write('%i, %i, %s, %s, %i, %s, %f\n' % (i, layer, "linear_post", "output", mode_j+1, this_lps[mode_j], this_ent))
                 
+                this_ent = entropy(np.square(this_pim[:, mode_j]))
+#            om_ents_pre.append(this_ent)
+                fout.write('%i, %i, %s, %s, %i, %f, %f\n' % (i, layer, "pre", "input", mode_j+1, this_pps[mode_j], this_ent))
+                this_ent = entropy(np.square(this_im[:, mode_j]))
+#            om_ents_post.append(this_ent)
+                fout.write('%i, %i, %s, %s, %i, %f, %f\n' % (i, layer, "post", "input", mode_j+1, this_ps[mode_j], this_ent))
+
+                this_ent = entropy(np.square(this_rim[:, mode_j]))
+                fout.write('%i, %i, %s, %s, %i, NA, %f\n' % (i, layer, "random_orthogonal", "input", mode_j+1, this_ent))
+
+                this_ent = entropy(np.square(this_lim[:, mode_j]))
+                fout.write('%i, %i, %s, %s, %i, %s, %f\n' % (i, layer, "linear_post", "input", mode_j+1, this_lps[mode_j], this_ent))
 #                this_ent = entropy(np.square(this_tom[mode_j, :]))
 #                fout.write('%i, %i, %s, %i, %s, %f\n' % (i, layer, "tanh_post", mode_j+1, this_tps[mode_j], this_ent))
     

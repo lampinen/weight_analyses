@@ -25,13 +25,15 @@ theme_set(theme_bw() +
 for (this_layer in 0:(num_layers-1)) {
   ggplot(data=entropy_data %>% filter(layer==this_layer), aes(x=entropy, color=type))  +
     scale_color_brewer(palette="Dark2") +
-    geom_density(size=1.2)
-  ggsave(sprintf("plots/modes_entropy_density_layer_%i.png", this_layer), width=7, height=7)
+    geom_density(size=1.2) +
+    facet_grid(mode_type ~ .)
+  ggsave(sprintf("plots/modes_entropy_density_layer_%i.png", this_layer), width=7, height=14)
    
   ggplot(data=entropy_data %>% filter(mode_rank < 30, layer==this_layer), aes(x=entropy, color=type))  +
     scale_color_brewer(palette="Dark2") +
-    geom_density(size=1.2)
-  ggsave(sprintf("plots/high_rank_modes_entropy_density_layer_%i.png", this_layer), width=7, height=7)
+    geom_density(size=1.2) +
+    facet_grid(mode_type ~ .)
+  ggsave(sprintf("plots/high_rank_modes_entropy_density_layer_%i.png", this_layer), width=7, height=14)
 }
 ```
 
@@ -68,7 +70,7 @@ for (this_layer in 0:(num_layers-1)) {
 
 ```{r}
 entropy_correlation_data = entropy_data %>%
-  filter(mode_rank < 50) %>%
+  filter(mode_rank < 50, grepl("output", mode_type)) %>%
   group_by(type, layer, mode_rank) %>%
   summarize(mean_entropy=mean(entropy), mean_strength=mean(as.numeric(mode_strength)))
 ```
